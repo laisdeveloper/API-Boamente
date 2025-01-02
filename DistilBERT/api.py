@@ -1,3 +1,4 @@
+import asyncio
 import re
 import httpx
 from typing import Dict
@@ -54,7 +55,6 @@ async def classifica(rqt: ClassificationRequest, model: BERTClassifier = Depends
 
     url = "http://127.0.0.1:8000/classifica"
 
-
     if verTermos(texto):
         try:
             sentiment, confidence, probabilities = model.predict(texto)
@@ -70,23 +70,33 @@ async def classifica(rqt: ClassificationRequest, model: BERTClassifier = Depends
 
     payload = {
         #'token': token,
+        'text': texto,
         'identificador': identificador,
         'probabilidade': probabilidade, 
         'possibilidade': possibilidade,
-        'data_criacao': datetime
+        'datetime': datetime
     }
 
+    """
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(90.0, read=90.0)) as client:
             resposta = await client.post(url, json=payload)
             resposta.raise_for_status()
-    except httpx.HTTPError as e:
+
+        print("Conectado com SUCESSO")
+    except httpx.HTTPStatusError as e:  # Específico para erros HTTP
+        print(f"Erro HTTP: {e.response.status_code}")
+        print(f"Detalhes do erro: {e.response.text}")
         raise RuntimeError(f"Erro ao conectar ao servidor remoto: {str(e)}")
+    except httpx.RequestError as e:  # Erros relacionados à conexão
+        print(f"Erro de requisição: {e}")
+        raise RuntimeError(f"Erro ao conectar ao servidor remoto: {str(e)}")
+    """
 
     return ClassificationResponse(
-        sentiment=sentiment,
-        confidence=probabilidade,
-        probabilities=probabilities
+    sentiment=str(sentiment),  # Convertendo para string
+    confidence=probabilidade,
+    probabilities={str(k): v for k, v in probabilities.items()}
     )
 
 # GET
